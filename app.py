@@ -1,25 +1,26 @@
+import streamlit as st
 from fractions import Fraction
 
 def parse_fraction(input_str):
-    """Convert string input to fraction (handles mixed numbers like '1 1/2')"""
+    """Convert string input to fraction"""
+    if not input_str:  # Handle empty input
+        return None
     try:
-        # First try converting as a simple fraction or integer
-        return Fraction(input_str)
-    except ValueError:
-        try:
-            # Try handling mixed number (e.g., "1 1/2")
-            whole, frac = input_str.split()
-            return Fraction(whole) + Fraction(frac)
-        except:
-            raise ValueError("Invalid input. Please use format: '1/2' or '1 1/2'")
+        if '/' in input_str:
+            if ' ' in input_str:  # Mixed number
+                whole, frac = input_str.split()
+                return Fraction(whole) + Fraction(frac)
+            return Fraction(input_str)
+        return Fraction(int(input_str))
+    except:
+        return None
 
 def format_fraction(frac):
-    """Convert fraction to mixed number string format"""
-    # If it's a whole number, return it as an integer
+    """Format fraction for display"""
+    if frac is None:
+        return ""
     if frac.denominator == 1:
         return str(frac.numerator)
-    
-    # Convert to mixed number if greater than 1
     if abs(frac) >= 1:
         whole = int(frac)
         frac_part = abs(frac - whole)
@@ -28,48 +29,84 @@ def format_fraction(frac):
         return f"{whole} {frac_part}"
     return str(frac)
 
-def calculate_frame_dimensions():
-    print("\nFrame Measurement Calculator")
-    print("-" * 30)
-    print("Enter measurements as fractions (e.g., '1/2' or '1 1/2')")
-    
-    # Get art piece dimensions
-    try:
-        art_width = parse_fraction(input("Enter art piece width (inches): "))
-        art_length = parse_fraction(input("Enter art piece length (inches): "))
-        rabbet_depth = parse_fraction(input("Enter rabbet depth (inches): "))
-        frame_width = parse_fraction(input("Enter frame width (inches): "))
-    except ValueError as e:
-        print(f"Error: {e}")
-        return None
-    
-    # Constants
-    WIGGLE_ROOM = Fraction(1, 16)  # 1/16 inch
-    
-    # Calculate opening size (including wiggle room)
-    opening_width = art_width + (WIGGLE_ROOM * 2)
-    opening_length = art_length + (WIGGLE_ROOM * 2)
-    
-    # Calculate outside dimensions
-    outside_width = opening_width - (rabbet_depth * 2) + (frame_width * 2)
-    outside_length = opening_length - (rabbet_depth * 2) + (frame_width * 2)
-    
-    # Display results
-    print("\nCalculated Frame Dimensions:")
-    print("-" * 30)
-    print(f"Art Piece Size: {format_fraction(art_width)} x {format_fraction(art_length)}")
-    print(f"Frame Opening Size: {format_fraction(opening_width)} x {format_fraction(opening_length)}")
-    print(f"Outside Frame Dimensions: {format_fraction(outside_width)} x {format_fraction(outside_length)}")
-    
-    return outside_width, outside_length
+# Page configuration
+st.set_page_config(page_title="Frame Calculator", layout="centered")
 
-if __name__ == "__main__":
-    while True:
-        result = calculate_frame_dimensions()
-        if result is None:
-            print("Please try again with valid measurements.")
+# Title and instructions
+st.title("🖼️ Frame Calculator")
+st.markdown("""
+### Input Instructions
+Enter measurements in any of these formats:
+- Whole numbers (e.g., 8)
+- Fractions (e.g., 1/2)
+- Mixed numbers (e.g., 8 1/2)
+""")
+
+# Create a form for inputs
+with st.form("frame_calculator_form"):
+    # Create two columns for inputs
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        art_width = st.text_input("Art Width (inches)", placeholder="e.g., 8 1/2")
+        rabbet_depth = st.text_input("Rabbet Depth (inches)", placeholder="e.g., 1/4")
+    
+    with col2:
+        art_length = st.text_input("Art Length (inches)", placeholder="e.g., 11")
+        frame_width = st.text_input("Frame Width (inches)", placeholder="e.g., 2")
+
+    # Submit button
+    submitted = st.form_submit_button("Calculate Dimensions", use_container_width=True)
+
+# Process calculations when form is submitted
+if submitted:
+    # Convert inputs to fractions
+    width = parse_fraction(art_width)
+    length = parse_fraction(art_length)
+    rabbet = parse_fraction(rabbet_depth)
+    frame = parse_fraction(frame_width)
+    
+    if all([width, length, rabbet, frame]):  # Check if all inputs are valid
+        # Constants
+        WIGGLE_ROOM = Fraction(1, 16)  # 1/16 inch
         
-        again = input("\nCalculate another frame? (y/n): ").lower()
-        if again != 'y':
-            print("Thank you for using the Frame Calculator!")
-            break
+        # Calculations
+        opening_width = width + (WIGGLE_ROOM * 2)
+        opening_length = length + (WIGGLE_ROOM * 2)
+        
+        outside_width = opening_width - (rabbet * 2) + (frame * 2)
+        outside_length = opening_length - (rabbet * 2) + (frame * 2)
+        
+        # Display results in a nice format
+        st.success("Calculations completed!")
+        
+        # Create three columns for results
+        st.markdown("### Results")
+        result_col1, result_col2, result_col3 = st.columns(3)
+        
+        with result_col1:
+            st.markdown("**Art Size**")
+            st.markdown(f"{format_fraction(width)} × {format_fraction(length)}\"")
+            
+        with result_col2:
+            st.markdown("**Opening Size**")
+            st.markdown(f"{format_fraction(opening_width)} × {format_fraction(opening_length)}\"")
+            
+        with result_col3:
+            st.markdown("**Outside Size**")
+            st.markdown(f"{format_fraction(outside_width)} × {format_fraction(outside_length)}\"")
+        
+        # Add explanation
+        st.markdown("---")
+        with st.expander("See calculation details"):
+            st.markdown("""
+            - Opening size includes 1/16" wiggle room on each side
+            - Outside size accounts for rabbet depth and frame width
+            - All measurements are in inches
+            """)
+    else:
+        st.error("Please enter valid measurements in all fields")
+
+# Footer
+st.markdown("---")
+st.markdown("Built with Streamlit • [Report an Issue](https://github.com)")
